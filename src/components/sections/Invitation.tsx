@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { useEffect, useRef } from "react";
 import { eventConfig } from "@/config/event";
 import { Bloom, Branch, LotusDivider } from "@/components/ornaments/Botanical";
 import { ArchCard } from "@/components/ui/ArchCard";
@@ -34,6 +34,7 @@ export function Invitation() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const floraY = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [0, -90]);
   const floraY2 = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [0, -40]);
+  useScrollNudge(opened, !!reduce);
 
   const show = (delay: number) => ({
     variants: inkIn,
@@ -112,58 +113,66 @@ export function Invitation() {
         </ArchCard>
       </motion.div>
 
-      <ScrollCue opened={opened} reduce={!!reduce} />
     </section>
   );
 }
 
 /**
- * Pinned to the bottom of the viewport so it is visible on every phone,
- * whatever the card height. Disappears as soon as the guest starts scrolling.
+ * "Peek" nudge: once the invitation has settled, the whole page lifts a little
+ * and drops back, like a gentle bounce, hinting there is more below. Repeats a
+ * few times and stops for good as soon as the guest scrolls. Any touch or wheel
+ * cancels the bounce in progress so it never fights the guest's finger.
  */
-function ScrollCue({ opened, reduce }: { opened: boolean; reduce: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-
+function useScrollNudge(play: boolean, reduce: boolean) {
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (!play || reduce) return;
+    const main = document.getElementById("main");
+    if (!main || typeof main.animate !== "function") return;
 
-  return (
-    <AnimatePresence>
-      {opened && !scrolled && (
-        <motion.a
-          key="scroll-cue"
-          href="#save-the-date"
-          aria-label="Scroll to continue"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0, transition: { delay: 1.6, duration: 0.8, ease: SILK } }}
-          exit={{ opacity: 0, y: 12, transition: { duration: 0.35 } }}
-          className="fixed inset-x-0 z-40 mx-auto flex w-fit flex-col items-center gap-1.5 rounded-full border border-gold/50 bg-ivory/85 px-5 pb-2 pt-2.5 shadow-[0_10px_30px_-12px_rgba(85,43,52,0.45)] backdrop-blur-md"
-          style={{ bottom: "max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
-        >
-          <span className="label whitespace-nowrap text-[0.66rem]">Scroll down</span>
-          <motion.svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5 text-burgundy"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            animate={reduce ? undefined : { y: [0, 5, 0], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <path d="M6 9l6 6 6-6" />
-            <path d="M6 4l6 6 6-6" opacity="0.45" />
-          </motion.svg>
-        </motion.a>
-      )}
-    </AnimatePresence>
-  );
+    const FIRST_DELAY = 3200;
+    const INTERVAL = 4200;
+    const MAX_BOUNCES = 6;
+
+    let count = 0;
+    let done = false;
+    let anim: Animation | undefined;
+    let timer: number | undefined;
+
+    const bounce = () => {
+      if (done || window.scrollY > 40) return stop();
+      anim = main.animate(
+        [
+          { transform: "translate3d(0,0,0)", easing: "cubic-bezier(0.33,0,0.2,1)" },
+          { transform: "translate3d(0,-48px,0)", offset: 0.32, easing: "cubic-bezier(0.5,0,0.75,0)" },
+          { transform: "translate3d(0,0,0)", offset: 0.6, easing: "cubic-bezier(0.33,0,0.2,1)" },
+          { transform: "translate3d(0,-16px,0)", offset: 0.78, easing: "cubic-bezier(0.5,0,0.75,0)" },
+          { transform: "translate3d(0,0,0)" },
+        ],
+        { duration: 1500 },
+      );
+      count += 1;
+      if (count < MAX_BOUNCES) timer = window.setTimeout(bounce, INTERVAL);
+    };
+
+    const cancelCurrent = () => anim?.cancel();
+    const stop = () => {
+      done = true;
+      window.clearTimeout(timer);
+      cancelCurrent();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("touchstart", cancelCurrent);
+      window.removeEventListener("wheel", cancelCurrent);
+    };
+    const onScroll = () => {
+      if (window.scrollY > 40) stop();
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("touchstart", cancelCurrent, { passive: true });
+    window.addEventListener("wheel", cancelCurrent, { passive: true });
+    timer = window.setTimeout(bounce, FIRST_DELAY);
+    return stop;
+  }, [play, reduce]);
 }
 
 function Monogram() {
