@@ -15,7 +15,6 @@ import { shortDate } from "@/lib/event";
 
 export default function Home() {
   const { partnerOne, partnerTwo } = eventConfig.couple;
-  const credit = eventConfig.music.src ? eventConfig.music.credit : null;
   return (
     <ExperienceProvider>
       <Entrance />
@@ -37,19 +36,6 @@ export default function Home() {
         <p className="text-[0.75rem] tracking-[0.12em] text-brown/80">
           {partnerOne} &amp; {partnerTwo}, {shortDate}
         </p>
-        {credit && (
-          <p className="mx-auto mt-3 max-w-[46ch] text-[0.68rem] leading-relaxed text-brown/70">
-            {credit.text} (
-            <a className="underline underline-offset-2" href={credit.sourceUrl} target="_blank" rel="noopener noreferrer">
-              source
-            </a>
-            ,{" "}
-            <a className="underline underline-offset-2" href={credit.licenseUrl} target="_blank" rel="noopener noreferrer">
-              {credit.license}
-            </a>
-            )
-          </p>
-        )}
       </footer>
       <MusicToggle />
     </ExperienceProvider>
