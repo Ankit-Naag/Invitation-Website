@@ -191,7 +191,7 @@ footer {
 
   .section {
     position: relative;
-    padding-block: clamp(5.5rem, 4rem + 8vw, 10rem);
+    padding-block: clamp(3.5rem, 2.5rem + 5vw, 6.5rem);
     padding-inline: max(1.25rem, env(safe-area-inset-left));
   }
 }
