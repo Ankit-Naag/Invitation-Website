@@ -226,8 +226,8 @@ export function Entrance() {
             aria-pressed={soundOn}
             className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[0.78rem] tracking-[0.08em] text-brown transition-colors hover:text-burgundy"
           >
-            <SoundIcon on={soundOn} />
-            {soundOn ? "Music on — it will play as you open" : "Open with music"}
+            <SoundIcon on={soundOn} muted={!soundOn} />
+            {soundOn ? "Music on · tap to mute" : "Music off · tap to play"}
           </button>
         </motion.div>
       </div>

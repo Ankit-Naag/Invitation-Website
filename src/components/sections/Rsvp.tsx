@@ -113,7 +113,7 @@ export function Rsvp() {
                     <>
                       <p className="script mt-5 text-[2rem] text-burgundy">One last step</p>
                       <p className="prose-serif mt-2 max-w-[32ch] text-[1.1rem]">
-                        Your RSVP message is ready in WhatsApp. Press send there to deliver it to the family.
+                        Your RSVP message is ready in WhatsApp. Press send there to deliver it.
                       </p>
                       <a className="btn btn-primary mt-6" href={state.url} target="_blank" rel="noopener noreferrer">
                         Open WhatsApp again
@@ -231,7 +231,9 @@ export function Rsvp() {
                   </button>
                   {!rsvpBackendEnabled && (
                     <p className="max-w-[40ch] text-center text-[0.78rem] leading-relaxed text-brown">
-                      This opens WhatsApp with your reply written out — just press send.
+                      {eventConfig.rsvp.whatsappNumber
+                        ? `This opens WhatsApp with your reply to ${eventConfig.contact.name ?? "the family"} written out — just press send.`
+                        : "This opens WhatsApp with your reply written out — just press send."}
                     </p>
                   )}
                   {attending === null && <p className="text-[0.78rem] text-brown">Choose accept or decline to continue.</p>}

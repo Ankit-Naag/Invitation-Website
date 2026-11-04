@@ -64,9 +64,9 @@ export const eventConfig = {
 
   contact: {
     /** e.g. "Ankit's family" */
-    name: null as string | null,
+    name: "Ankit" as string | null,
     /** International format with country code, e.g. "+91 98765 43210". */
-    phone: null as string | null,
+    phone: "+91 85447 53313" as string | null,
   },
 
   rsvp: {
@@ -80,7 +80,7 @@ export const eventConfig = {
      *    themselves. If `whatsappNumber` is set, it is addressed to that number;
      *    if not, WhatsApp asks the guest to pick the contact.
      */
-    whatsappNumber: null as string | null,
+    whatsappNumber: "+91 85447 53313" as string | null,
     /** Optional "please reply by" date, e.g. "15 November 2026". */
     respondBy: null as string | null,
     maxGuests: 10,
@@ -101,13 +101,25 @@ export const eventConfig = {
 
   music: {
     /**
-     * Path to a licensed audio file in /public (e.g. "/audio/our-song.mp3").
-     * When `null`, the site plays its own original, procedurally generated
-     * music-box melody (Web Audio) — no third-party recording is used.
+     * Background music (looped). Set to `null` to use the site's own
+     * synthesised music-box melody instead.
+     *
+     * Current track: Debussy, "Clair de lune" (Suite bergamasque), performed by
+     * Laurens Goedhart, 2011 — licensed CC BY 3.0 (the composition itself is
+     * public domain). Source: Wikimedia Commons,
+     * File:Clair_de_lune_(Claude_Debussy)_Suite_bergamasque.ogg
+     * The licence requires the credit below to stay visible on the site.
      */
-    src: null as string | null,
-    title: "An original music-box lullaby",
-    volume: 0.5,
+    src: "/audio/clair-de-lune.mp3" as string | null,
+    title: "Clair de lune — Claude Debussy",
+    credit: {
+      text: "Music: “Clair de lune” by Claude Debussy, performed by Laurens Goedhart",
+      license: "CC BY 3.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/3.0/",
+      sourceUrl:
+        "https://commons.wikimedia.org/wiki/File:Clair_de_lune_(Claude_Debussy)_Suite_bergamasque.ogg",
+    } as { text: string; license: string; licenseUrl: string; sourceUrl: string } | null,
+    volume: 0.6,
   },
 
   share: {

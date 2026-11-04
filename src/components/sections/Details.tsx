@@ -52,9 +52,19 @@ function confirmedItems(): Item[] {
             <>
               {contact.name && <span className="block font-display text-[1.35rem] text-ink">{contact.name}</span>}
               {contact.phone && (
-                <a className="mt-1 inline-block underline decoration-gold/60 underline-offset-4" href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}>
-                  {contact.phone}
-                </a>
+                <span className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                  <a className="underline decoration-gold/60 underline-offset-4" href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}>
+                    {contact.phone}
+                  </a>
+                  <a
+                    className="text-[0.8rem] font-semibold uppercase tracking-[0.14em] text-burgundy underline decoration-gold/60 underline-offset-4"
+                    href={`https://wa.me/${contact.phone.replace(/[^\d]/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    WhatsApp
+                  </a>
+                </span>
               )}
             </>
           ),

@@ -263,7 +263,7 @@ export function ScratchReveal() {
   };
 
   return (
-    <section id="save-the-date" aria-labelledby="save-the-date-title" className="section">
+    <section id="save-the-date" aria-labelledby="save-the-date-title" className="section overflow-hidden">
       <SectionHeading
         id="save-the-date-title"
         title="A special day awaits"

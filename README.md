@@ -20,7 +20,8 @@ All event information lives in **`src/config/event.ts`**. Change a value there a
 | --- | --- |
 | Couple, date, time (11:00–15:00 IST), venue, address | Confirmed |
 | Map location | Resolved from the supplied link `maps.app.goo.gl/JCT4XUosqS6rJZnYA` → Hotel Tara (31.4504656, 76.3129841) |
-| Dress code, parking, contact person/phone, family note, RSVP-by date, WhatsApp number | `null`: hidden until you fill them in |
+| Contact and RSVP WhatsApp: Ankit, +91 85447 53313 | Confirmed |
+| Dress code, parking, family note, RSVP-by date | `null`: hidden until you fill them in |
 
 Any field left as `null` is hidden. Nothing unconfirmed is shown.
 
@@ -39,7 +40,7 @@ The preview image is `src/app/opengraph-image.jpg` (1200×630, about 70 KB). Wha
 
 RSVPs are never faked. There are two modes.
 
-1. **Default (no setup).** The form writes the guest's reply into a WhatsApp message, and the guest presses send. To send replies to one person, set `rsvp.whatsappNumber` in the config (for example `"+91 98xxxxxxx"`). If it's left blank, WhatsApp asks the guest to pick a contact.
+1. **Default (no setup).** The form writes the guest's reply into a WhatsApp message to the number in `rsvp.whatsappNumber` (currently +91 85447 53313), and the guest presses send.
 2. **Google Sheets or any other webhook.** Set two environment variables:
    ```
    RSVP_WEBHOOK_URL=https://script.google.com/macros/s/.../exec   # server-only
@@ -59,9 +60,16 @@ RSVPs are never faked. There are two modes.
 
 ## Music
 
-No commercial recording is bundled. By default the site plays a short music-box lullaby written for this site and generated live in the browser with the Web Audio API. Sound plays only after the guest turns it on.
+Background music is **"Clair de lune" by Claude Debussy, performed by Laurens Goedhart (2011)**, from Wikimedia Commons. The composition is public domain. The recording is licensed **CC BY 3.0**, which allows use on this site **as long as the credit shown in the footer stays visible**.
 
-To use your own licensed track, put it in `public/audio/` and set `music.src` (for example `"/audio/our-song.mp3"`).
+The file is `public/audio/clair-de-lune.mp3`: about 3 MB, 5 minutes, re-encoded and level-normalised, and it loops.
+
+**When it starts.** Music is on by default.
+- Where the browser allows it, music starts as soon as the page loads.
+- Phone browsers, including WhatsApp's built-in browser, don't let any website start sound before the visitor's first tap. On those, the music starts on the guest's first tap, which in practice is the tap that opens the envelope.
+- Guests can mute it from the envelope screen or with the floating button. Muting is remembered for the rest of the visit.
+
+**Changing the track.** Put a track you have the rights to in `public/audio/`, then update `music.src` and `music.credit` in the config. Setting `music.src` to `null` switches to a music-box tune that's generated in the browser.
 
 ## Photos
 

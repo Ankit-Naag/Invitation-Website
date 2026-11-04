@@ -1,11 +1,17 @@
 /**
  * Sound engine.
  *
- * - Nothing here runs until the visitor explicitly enables sound; the
- *   AudioContext is only created inside a user gesture.
- * - If `eventConfig.music.src` points to a licensed audio file, that file is
- *   streamed. Otherwise an original music-box lullaby is synthesised live
- *   (composed for this site — no third-party recording involved).
+ * Browsers (Chrome, Safari, WhatsApp's in-app browser) do not allow a page to
+ * start audio with sound until the visitor has interacted with it. So music
+ * is "on" by default and we:
+ *   1. try to start it as soon as the page loads (works where the browser
+ *      already trusts the site), and otherwise
+ *   2. start it on the visitor's very first tap / click / key press — in
+ *      practice, the tap that opens the envelope.
+ *
+ * `eventConfig.music.src` is streamed through a Web Audio gain node so it can
+ * fade smoothly (iOS ignores `audio.volume`). With no file configured, an
+ * original music-box melody is synthesised instead.
  */
 
 type Engine = {
@@ -17,6 +23,8 @@ type Engine = {
 
 let engine: Engine | null = null;
 let fileAudio: HTMLAudioElement | null = null;
+let fileGain: GainNode | null = null;
+let pauseTimer: number | null = null;
 let schedulerTimer: number | null = null;
 let nextNoteTime = 0;
 let step = 0;
@@ -56,7 +64,7 @@ function createEngine(): Engine | null {
   return { ctx, master, sfx, reverb };
 }
 
-/** Must be called synchronously inside a click/tap handler. */
+/** Creates/resumes the shared AudioContext (resuming needs a user gesture). */
 export function unlockAudio(): Engine | null {
   if (!engine) engine = createEngine();
   if (engine && engine.ctx.state === "suspended") void engine.ctx.resume();
@@ -143,47 +151,113 @@ function scheduler() {
 
 /* ── Public API ────────────────────────────────────────────────────────── */
 
-export function startMusic(src: string | null, volume: number) {
-  if (playing) return;
-  playing = true;
+/** Create the <audio> element early so the file is buffered before the first tap. */
+export function preloadMusic(src: string | null) {
+  if (!src || fileAudio || typeof window === "undefined") return;
+  fileAudio = new Audio(src);
+  fileAudio.loop = true;
+  fileAudio.preload = "auto";
+  fileAudio.setAttribute("playsinline", "");
+}
+
+function routeFileThroughGain(e: Engine | null) {
+  if (!fileAudio || fileGain || !e) return;
+  try {
+    const node = e.ctx.createMediaElementSource(fileAudio);
+    fileGain = e.ctx.createGain();
+    fileGain.gain.value = 0;
+    node.connect(fileGain).connect(e.ctx.destination);
+  } catch {
+    fileGain = null; // fall back to element volume
+  }
+}
+
+function rampTo(gain: GainNode, ctx: AudioContext, value: number, seconds: number) {
+  const now = ctx.currentTime;
+  gain.gain.cancelScheduledValues(now);
+  gain.gain.setValueAtTime(gain.gain.value, now);
+  gain.gain.linearRampToValueAtTime(value, now + seconds);
+}
+
+export function isMusicPlaying() {
+  return playing;
+}
+
+/**
+ * Start music. Resolves `true` once audio is actually playing, `false` if the
+ * browser blocked it (call again from the next user gesture).
+ *
+ * Every attempt runs independently (no de-duplication): for one tap the
+ * browser fires pointerdown → touchend → click, and on iOS only the later
+ * ones count as a gesture — each must get its own synchronous play() call.
+ * Repeated play()/resume()/ramps are harmless.
+ */
+export async function startMusic(src: string | null, volume: number): Promise<boolean> {
+  if (playing) return true;
+  if (pauseTimer !== null) {
+    window.clearTimeout(pauseTimer);
+    pauseTimer = null;
+  }
+
   if (src) {
-    if (!fileAudio) {
-      fileAudio = new Audio(src);
-      fileAudio.loop = true;
-      fileAudio.preload = "auto";
+    preloadMusic(src);
+    const audio = fileAudio!;
+    const e = unlockAudio();
+    routeFileThroughGain(e);
+    try {
+      if (e && fileGain) {
+        // Kick off both synchronously — iOS only honours play() inside the gesture.
+        const played = audio.play();
+        const resumed = e.ctx.state === "running" ? Promise.resolve() : e.ctx.resume();
+        const [p] = await Promise.allSettled([played, resumed]);
+        // A suspended context would play silently, so treat that as blocked.
+        if (p.status === "rejected") return playing;
+        if (e.ctx.state !== "running") {
+          if (!playing) audio.pause(); // would play silently
+          return false;
+        }
+        rampTo(fileGain, e.ctx, volume, 2.5);
+      } else {
+        audio.volume = volume;
+        await audio.play();
+      }
+      playing = true;
+      return true;
+    } catch {
+      return false;
     }
-    fileAudio.volume = volume;
-    void fileAudio.play().catch(() => {
-      playing = false;
-    });
-    return;
   }
+
   const e = unlockAudio();
-  if (!e) {
-    playing = false;
-    return;
-  }
-  const now = e.ctx.currentTime;
-  e.master.gain.cancelScheduledValues(now);
-  e.master.gain.setValueAtTime(e.master.gain.value, now);
-  e.master.gain.linearRampToValueAtTime(volume, now + 1.8);
-  nextNoteTime = now + 0.12;
+  if (!e) return false;
+  if (e.ctx.state !== "running") await e.ctx.resume().catch(() => {});
+  if (e.ctx.state !== "running") return false;
+  playing = true;
+  rampTo(e.master, e.ctx, volume, 1.8);
+  nextNoteTime = e.ctx.currentTime + 0.12;
   if (schedulerTimer === null) schedulerTimer = window.setInterval(scheduler, 90);
   scheduler();
+  return true;
 }
 
 export function stopMusic() {
   if (!playing) return;
   playing = false;
   if (fileAudio) {
-    fileAudio.pause();
+    const audio = fileAudio;
+    if (engine && fileGain) {
+      rampTo(fileGain, engine.ctx, 0, 0.6);
+      pauseTimer = window.setTimeout(() => {
+        pauseTimer = null;
+        if (!playing) audio.pause();
+      }, 650);
+    } else {
+      audio.pause();
+    }
     return;
   }
   if (!engine) return;
-  const now = engine.ctx.currentTime;
-  engine.master.gain.cancelScheduledValues(now);
-  engine.master.gain.setValueAtTime(engine.master.gain.value, now);
-  engine.master.gain.linearRampToValueAtTime(0, now + 0.6);
+  rampTo(engine.master, engine.ctx, 0, 0.6);
   if (schedulerTimer !== null) {
     window.clearInterval(schedulerTimer);
     schedulerTimer = null;

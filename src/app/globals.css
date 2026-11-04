@@ -54,6 +54,7 @@ body {
   background: var(--color-ivory);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  overflow-x: hidden; /* fallback for older iOS WebViews (WhatsApp in-app browser) */
   overflow-x: clip;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

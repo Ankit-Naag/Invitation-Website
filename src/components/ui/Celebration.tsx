@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Piece = {
   kind: "petal" | "dust";
@@ -41,9 +41,15 @@ function makePieces(count: number): Piece[] {
 export function Celebration({ count = 30 }: { count?: number }) {
   const reduce = useReducedMotion();
   const [pieces] = useState(() => makePieces(count));
-  if (reduce) return null;
+  const [done, setDone] = useState(false);
+  // Remove the pieces once they've fallen, so nothing lingers off-screen.
+  useEffect(() => {
+    const t = window.setTimeout(() => setDone(true), 4500);
+    return () => window.clearTimeout(t);
+  }, []);
+  if (reduce || done) return null;
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center" aria-hidden="true">
+    <div className="pointer-events-none absolute -inset-x-4 -inset-y-24 z-10 flex items-center justify-center overflow-hidden" aria-hidden="true">
       {pieces.map((p, i) => (
         <motion.span
           key={i}

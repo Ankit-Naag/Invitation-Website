@@ -7,21 +7,24 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { eventConfig } from "@/config/event";
-import { playChime, playPaper, startMusic, stopMusic, unlockAudio } from "@/lib/audio";
+import { playChime, playPaper, preloadMusic, startMusic, stopMusic, unlockAudio } from "@/lib/audio";
 
 type Experience = {
   /** True once the guest has opened the envelope. */
   opened: boolean;
   markOpened: () => void;
-  /** Guest's sound preference (remembered for this browser session). */
+  /** Music preference — on by default, guest can mute (remembered per session). */
   soundOn: boolean;
-  /** Toggle music; must be called from a click/tap handler. */
+  /** True while music is audibly playing. */
+  playing: boolean;
+  /** Toggle music; call from a click/tap handler. */
   toggleSound: () => void;
-  /** Start music if the guest has opted in (call from a gesture). */
+  /** Start music if wanted (call from a gesture handler). */
   resumeIfOptedIn: () => void;
   sfx: { paper: () => void; chime: () => void };
 };
@@ -29,9 +32,12 @@ type Experience = {
 const ExperienceContext = createContext<Experience | null>(null);
 const STORAGE_KEY = "as-engagement-sound";
 
-function readPref(): boolean {
+/** Events that count as a "user activation" for audio in Chrome/Safari. */
+const GESTURES = ["pointerdown", "touchend", "click", "keydown"] as const;
+
+function readMuted(): boolean {
   try {
-    return sessionStorage.getItem(STORAGE_KEY) === "on";
+    return sessionStorage.getItem(STORAGE_KEY) === "off";
   } catch {
     return false;
   }
@@ -46,42 +52,70 @@ function writePref(on: boolean) {
 
 export function ExperienceProvider({ children }: { children: ReactNode }) {
   const [opened, setOpened] = useState(false);
-  const [soundOn, setSoundOn] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const soundOnRef = useRef(true);
   const { src, volume } = eventConfig.music;
 
-  // Restore preference after hydration (server always renders "off").
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from sessionStorage
-    if (readPref()) setSoundOn(true);
-  }, []);
+  const tryStart = useCallback(() => {
+    void startMusic(src, volume).then((ok) => {
+      if (!ok) return;
+      // The guest may have muted while the browser was still deciding.
+      if (!soundOnRef.current) stopMusic();
+      else setPlaying(true);
+    });
+  }, [src, volume]);
 
-  // Pause when the tab is hidden; resume when it returns.
+  // Respect a mute from earlier in this session, otherwise begin right away:
+  // play immediately if the browser allows it, else on the first interaction.
   useEffect(() => {
-    if (!soundOn || !opened) return;
+    if (readMuted()) {
+      soundOnRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from sessionStorage
+      setSoundOn(false);
+      return;
+    }
+    preloadMusic(src);
+    tryStart();
+  }, [src, tryStart]);
+
+  // Until music is actually playing, every tap / click / key press retries.
+  useEffect(() => {
+    if (!soundOn || playing) return;
+    const onGesture = () => tryStart();
+    GESTURES.forEach((g) => window.addEventListener(g, onGesture, { capture: true, passive: true }));
+    return () => GESTURES.forEach((g) => window.removeEventListener(g, onGesture, { capture: true }));
+  }, [soundOn, playing, tryStart]);
+
+  // Pause when the tab/app is in the background; resume on return.
+  useEffect(() => {
+    if (!soundOn || !playing) return;
     const onVis = () => {
       if (document.hidden) stopMusic();
-      else startMusic(src, volume);
+      // If the browser won't resume without a tap, fall back to gesture listeners.
+      else void startMusic(src, volume).then((ok) => !ok && setPlaying(false));
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [soundOn, opened, src, volume]);
+  }, [soundOn, playing, src, volume]);
 
   const toggleSound = useCallback(() => {
     const next = !soundOn;
+    soundOnRef.current = next;
     setSoundOn(next);
     writePref(next);
     if (next) {
       unlockAudio();
-      // Music begins once the invitation is open; before that we only arm it.
-      if (opened) startMusic(src, volume);
+      tryStart();
     } else {
       stopMusic();
+      setPlaying(false);
     }
-  }, [soundOn, opened, src, volume]);
+  }, [soundOn, tryStart]);
 
   const resumeIfOptedIn = useCallback(() => {
-    if (soundOn) startMusic(src, volume);
-  }, [soundOn, src, volume]);
+    if (soundOnRef.current) tryStart();
+  }, [tryStart]);
 
   const markOpened = useCallback(() => setOpened(true), []);
 
@@ -94,8 +128,8 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ opened, markOpened, soundOn, toggleSound, resumeIfOptedIn, sfx }),
-    [opened, markOpened, soundOn, toggleSound, resumeIfOptedIn, sfx],
+    () => ({ opened, markOpened, soundOn, playing, toggleSound, resumeIfOptedIn, sfx }),
+    [opened, markOpened, soundOn, playing, toggleSound, resumeIfOptedIn, sfx],
   );
 
   return (
