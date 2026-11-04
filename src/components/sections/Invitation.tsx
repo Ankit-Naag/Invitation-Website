@@ -1,7 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { useEffect, useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { eventConfig } from "@/config/event";
 import { Bloom, Branch, LotusDivider } from "@/components/ornaments/Botanical";
 import { ArchCard } from "@/components/ui/ArchCard";
@@ -34,7 +35,7 @@ export function Invitation() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const floraY = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [0, -90]);
   const floraY2 = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [0, -40]);
-  useScrollNudge(opened, !!reduce);
+  const nudge = useScrollNudge(opened, !!reduce);
 
   const show = (delay: number) => ({
     variants: inkIn,
@@ -113,25 +114,34 @@ export function Invitation() {
         </ArchCard>
       </motion.div>
 
+      {opened && <ScrollCue show={nudge.cue} beat={nudge.beat} reduce={!!reduce} />}
     </section>
   );
 }
 
+const NUDGE_FIRST_DELAY = 3200;
+const NUDGE_INTERVAL = 4200;
+const NUDGE_MAX_BOUNCES = 6;
+const NUDGE_DURATION = 1500;
+
 /**
  * "Peek" nudge: once the invitation has settled, the whole page lifts a little
- * and drops back, like a gentle bounce, hinting there is more below. Repeats a
- * few times and stops for good as soon as the guest scrolls. Any touch or wheel
- * cancels the bounce in progress so it never fights the guest's finger.
+ * and drops back, hinting there is more below. Repeats a few times and stops for
+ * good as soon as the guest scrolls. Any touch or wheel cancels the bounce in
+ * progress so it never fights the guest's finger.
+ *
+ * Returns whether the scroll cue should be visible and a `beat` counter that
+ * ticks on every bounce so the cue can move in time with the page.
  */
 function useScrollNudge(play: boolean, reduce: boolean) {
-  useEffect(() => {
-    if (!play || reduce) return;
-    const main = document.getElementById("main");
-    if (!main || typeof main.animate !== "function") return;
+  const [cue, setCue] = useState(false);
+  const [beat, setBeat] = useState(0);
 
-    const FIRST_DELAY = 3200;
-    const INTERVAL = 4200;
-    const MAX_BOUNCES = 6;
+  useEffect(() => {
+    if (!play) return;
+
+    const main = document.getElementById("main");
+    const canAnimate = !reduce && !!main && typeof main.animate === "function";
 
     let count = 0;
     let done = false;
@@ -139,24 +149,28 @@ function useScrollNudge(play: boolean, reduce: boolean) {
     let timer: number | undefined;
 
     const bounce = () => {
-      if (done || window.scrollY > 40) return stop();
-      anim = main.animate(
-        [
-          { transform: "translate3d(0,0,0)", easing: "cubic-bezier(0.33,0,0.2,1)" },
-          { transform: "translate3d(0,-48px,0)", offset: 0.32, easing: "cubic-bezier(0.5,0,0.75,0)" },
-          { transform: "translate3d(0,0,0)", offset: 0.6, easing: "cubic-bezier(0.33,0,0.2,1)" },
-          { transform: "translate3d(0,-16px,0)", offset: 0.78, easing: "cubic-bezier(0.5,0,0.75,0)" },
-          { transform: "translate3d(0,0,0)" },
-        ],
-        { duration: 1500 },
-      );
-      count += 1;
-      if (count < MAX_BOUNCES) timer = window.setTimeout(bounce, INTERVAL);
+      if (done) return;
+      if (canAnimate) {
+        anim = main!.animate(
+          [
+            { transform: "translate3d(0,0,0)", easing: "cubic-bezier(0.33,0,0.2,1)" },
+            { transform: "translate3d(0,-48px,0)", offset: 0.32, easing: "cubic-bezier(0.5,0,0.75,0)" },
+            { transform: "translate3d(0,0,0)", offset: 0.6, easing: "cubic-bezier(0.33,0,0.2,1)" },
+            { transform: "translate3d(0,-16px,0)", offset: 0.78, easing: "cubic-bezier(0.5,0,0.75,0)" },
+            { transform: "translate3d(0,0,0)" },
+          ],
+          { duration: NUDGE_DURATION },
+        );
+        setBeat((b) => b + 1);
+        count += 1;
+        if (count < NUDGE_MAX_BOUNCES) timer = window.setTimeout(bounce, NUDGE_INTERVAL);
+      }
     };
 
     const cancelCurrent = () => anim?.cancel();
     const stop = () => {
       done = true;
+      setCue(false);
       window.clearTimeout(timer);
       cancelCurrent();
       window.removeEventListener("scroll", onScroll);
@@ -167,12 +181,64 @@ function useScrollNudge(play: boolean, reduce: boolean) {
       if (window.scrollY > 40) stop();
     };
 
+    if (window.scrollY > 40) return;
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("touchstart", cancelCurrent, { passive: true });
     window.addEventListener("wheel", cancelCurrent, { passive: true });
-    timer = window.setTimeout(bounce, FIRST_DELAY);
+    timer = window.setTimeout(() => {
+      if (done) return;
+      setCue(true);
+      bounce();
+    }, NUDGE_FIRST_DELAY);
     return stop;
   }, [play, reduce]);
+
+  return { cue, beat };
+}
+
+/**
+ * Quiet "scroll down" hint at the foot of the screen — text and a chevron on a
+ * soft ivory fade, no bubble. Portalled to <body> because <main> is transformed
+ * during the bounce, which would otherwise drag a fixed element along with it.
+ */
+function ScrollCue({ show, beat, reduce }: { show: boolean; beat: number; reduce: boolean }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          key="scroll-cue"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: 0.8, ease: SILK } }}
+          exit={{ opacity: 0, transition: { duration: 0.4 } }}
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center bg-gradient-to-t from-ivory via-ivory/80 to-transparent pt-12"
+          style={{ paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))" }}
+        >
+          <a href="#save-the-date" className="pointer-events-auto flex flex-col items-center gap-1 px-4 py-1">
+            <span className="label whitespace-nowrap">Scroll down</span>
+            <motion.svg
+              key={beat}
+              viewBox="0 0 24 24"
+              className="h-6 w-6 text-burgundy"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              initial={false}
+              animate={reduce ? undefined : { y: [0, 9, 0, 4, 0] }}
+              transition={{ duration: NUDGE_DURATION / 1000, times: [0, 0.32, 0.6, 0.78, 1], ease: "easeInOut" }}
+            >
+              <path d="M6 9l6 6 6-6" />
+              <path d="M6 4l6 6 6-6" opacity="0.4" />
+            </motion.svg>
+          </a>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  );
 }
 
 function Monogram() {
