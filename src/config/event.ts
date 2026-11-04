@@ -104,21 +104,14 @@ export const eventConfig = {
      * Background music (looped). Set to `null` to use the site's own
      * synthesised music-box melody instead.
      *
-     * Current track: Debussy, "Clair de lune" (Suite bergamasque), performed by
-     * Laurens Goedhart, 2011 — licensed CC BY 3.0 (the composition itself is
-     * public domain). Source: Wikimedia Commons,
-     * File:Clair_de_lune_(Claude_Debussy)_Suite_bergamasque.ogg
-     * The licence requires the credit below to stay visible on the site.
+     * Current track: "Dekho Dekho Jaanam", sung by Udit Narayan and Alka
+     * Yagnik, supplied by the hosts. The file is trimmed to start at 0:50 of
+     * the original, faded in/out so the loop joins smoothly, and normalised
+     * to about -16 LUFS.
      */
-    src: "/audio/clair-de-lune.mp3" as string | null,
-    title: "Clair de lune — Claude Debussy",
-    credit: {
-      text: "Music: “Clair de lune” by Claude Debussy, performed by Laurens Goedhart",
-      license: "CC BY 3.0",
-      licenseUrl: "https://creativecommons.org/licenses/by/3.0/",
-      sourceUrl:
-        "https://commons.wikimedia.org/wiki/File:Clair_de_lune_(Claude_Debussy)_Suite_bergamasque.ogg",
-    } as { text: string; license: string; licenseUrl: string; sourceUrl: string } | null,
+    src: "/audio/dekho-dekho-jaanam.mp3" as string | null,
+    title: "Dekho Dekho Jaanam — Udit Narayan & Alka Yagnik",
+    credit: null as { text: string; license: string; licenseUrl: string; sourceUrl: string } | null,
     volume: 0.6,
   },
 

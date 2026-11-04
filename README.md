@@ -60,16 +60,16 @@ RSVPs are never faked. There are two modes.
 
 ## Music
 
-Background music is **"Clair de lune" by Claude Debussy, performed by Laurens Goedhart (2011)**, from Wikimedia Commons. The composition is public domain. The recording is licensed **CC BY 3.0**, which allows use on this site **as long as the credit shown in the footer stays visible**.
+Background music is **"Dekho Dekho Jaanam"** by Udit Narayan and Alka Yagnik, supplied by the hosts.
 
-The file is `public/audio/clair-de-lune.mp3`: about 3 MB, 5 minutes, re-encoded and level-normalised, and it loops.
+The file is `public/audio/dekho-dekho-jaanam.mp3`: about 4 MB and 4 min 24 s. It starts at 0:50 of the original song, fades in and out so the loop joins smoothly, is level-normalised to about −16 LUFS, and loops.
 
 **When it starts.** Music is on by default.
 - Where the browser allows it, music starts as soon as the page loads.
 - Phone browsers, including WhatsApp's built-in browser, don't let any website start sound before the visitor's first tap. On those, the music starts on the guest's first tap, which in practice is the tap that opens the envelope.
 - Guests can mute it from the envelope screen or with the floating button. Muting is remembered for the rest of the visit.
 
-**Changing the track.** Put a track you have the rights to in `public/audio/`, then update `music.src` and `music.credit` in the config. Setting `music.src` to `null` switches to a music-box tune that's generated in the browser.
+**Changing the track.** Put a track you have the rights to in `public/audio/`, then update `music.src` (and `music.credit` if the track's licence needs one) in the config. Setting `music.src` to `null` switches to a music-box tune that's generated in the browser.
 
 ## Photos
 
