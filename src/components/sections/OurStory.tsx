@@ -2,7 +2,7 @@
 
 import Image, { type StaticImageData } from "next/image";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { eventConfig } from "@/config/event";
 import childhood from "@/assets/childhood.jpeg";
 import { ArchClipDefs, ArchOutline, Bloom, Branch } from "@/components/ornaments/Botanical";
@@ -32,7 +32,6 @@ export function OurStory() {
   const photo = eventConfig.gallery.find((g) => PHOTOS[g.id]);
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
-  const [loaded, setLoaded] = useState(false);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const imgY = useTransform(scrollYProgress, [0, 1], reduce ? ["0%", "0%"] : ["-4%", "4%"]);
   const frameY = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [24, -24]);
@@ -70,11 +69,10 @@ export function OurStory() {
                     src={PHOTOS[photo.id]}
                     alt={photo.alt}
                     fill
-                    // fetch at page load (while the entrance screen is up) instead of lazily on scroll
-                    loading="eager"
-                    onLoad={() => setLoaded(true)}
+                    // <link rel="preload"> in <head>: download starts with the page, while the entrance screen is up
+                    preload
                     sizes="(min-width: 1024px) 420px, (min-width: 768px) 40vw, 21rem"
-                    className={`object-cover object-[50%_0%] [filter:saturate(0.92)_sepia(0.1)] transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`}
+                    className="object-cover object-[50%_0%] [filter:saturate(0.92)_sepia(0.1)]"
                   />
                 </motion.div>
                 <span
