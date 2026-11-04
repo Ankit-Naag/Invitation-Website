@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { eventConfig } from "@/config/event";
 import { Bloom, Branch, LotusDivider } from "@/components/ornaments/Botanical";
 import { ArchCard } from "@/components/ui/ArchCard";
@@ -112,21 +112,57 @@ export function Invitation() {
         </ArchCard>
       </motion.div>
 
-      <motion.a
-        href="#save-the-date"
-        {...show(2.8)}
-        className="group mt-14 flex flex-col items-center gap-3 text-brown"
-      >
-        <span className="label">Scroll to continue</span>
-        <span className="relative block h-12 w-px overflow-hidden bg-gold/30" aria-hidden="true">
-          <motion.span
-            className="absolute inset-x-0 top-0 block h-1/2 bg-gold"
-            animate={opened && !reduce ? { y: ["-100%", "200%"] } : undefined}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 3 }}
-          />
-        </span>
-      </motion.a>
+      <ScrollCue opened={opened} reduce={!!reduce} />
     </section>
+  );
+}
+
+/**
+ * Pinned to the bottom of the viewport so it is visible on every phone,
+ * whatever the card height. Disappears as soon as the guest starts scrolling.
+ */
+function ScrollCue({ opened, reduce }: { opened: boolean; reduce: boolean }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {opened && !scrolled && (
+        <motion.a
+          key="scroll-cue"
+          href="#save-the-date"
+          aria-label="Scroll to continue"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0, transition: { delay: 1.6, duration: 0.8, ease: SILK } }}
+          exit={{ opacity: 0, y: 12, transition: { duration: 0.35 } }}
+          className="fixed inset-x-0 z-40 mx-auto flex w-fit flex-col items-center gap-1.5 rounded-full border border-gold/50 bg-ivory/85 px-5 pb-2 pt-2.5 shadow-[0_10px_30px_-12px_rgba(85,43,52,0.45)] backdrop-blur-md"
+          style={{ bottom: "max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
+        >
+          <span className="label whitespace-nowrap text-[0.66rem]">Scroll down</span>
+          <motion.svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5 text-burgundy"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            animate={reduce ? undefined : { y: [0, 5, 0], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <path d="M6 9l6 6 6-6" />
+            <path d="M6 4l6 6 6-6" opacity="0.45" />
+          </motion.svg>
+        </motion.a>
+      )}
+    </AnimatePresence>
   );
 }
 
